@@ -228,8 +228,38 @@ h2 { font-size: clamp(2rem, 8vw, 2.8rem); }
 .letter .sign small { display: block; font-family: var(--body); font-size: .9rem; color: var(--muted); }
 .foot { margin: 0; font-size: .85rem; color: var(--muted); }
 
+/* Scene 7: write back */
+a.btn { text-decoration: none; display: inline-block; }
+.reply { width: 100%; display: flex; flex-direction: column; gap: 10px; text-align: left; }
+.lbl { font-size: .82rem; letter-spacing: .12em; text-transform: uppercase; color: var(--marigold); }
+.reply textarea, .reply input {
+  font: inherit; color: var(--ink); width: 100%; box-sizing: border-box;
+  background: rgba(18,10,36,.55); border: 1px solid rgba(255,178,56,.35); border-radius: 6px;
+  padding: 12px 14px; resize: vertical;
+}
+.reply textarea::placeholder, .reply input::placeholder { color: rgba(195,179,214,.6); }
+.reply textarea:focus, .reply input:focus { outline: 2px solid var(--marigold); outline-offset: 1px; border-color: transparent; }
+.reply .row { margin-top: 6px; }
+.sendbox { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.lantern {
+  position: fixed; left: 50%; bottom: -170px; z-index: 4; width: 150px; margin-left: -75px; box-sizing: border-box;
+  padding: 20px 14px 24px; max-height: 160px; overflow: hidden;
+  border-radius: 42% 42% 18% 18% / 30% 30% 16% 16%;
+  background: radial-gradient(ellipse at 50% 80%, #fff1c4, #ffb238 55%, #e8503a);
+  color: #5a1f0e; font-size: .85rem; line-height: 1.3; text-align: center;
+  box-shadow: 0 0 44px rgba(255,178,56,.7); pointer-events: none;
+  animation: rise 10s ease-in forwards;
+}
+@keyframes rise {
+  0% { transform: translate(0,0) rotate(-2deg); opacity: 0; }
+  8% { opacity: 1; }
+  50% { transform: translate(30px,-60vh) rotate(3deg); }
+  100% { transform: translate(-20px,-130vh) rotate(-3deg); opacity: .15; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .scene, .diya.lit .flame, .rangoli.done { animation: none; }
+  .lantern { animation: none; bottom: 40%; }
   .card-inner, .env-flap, .env-card { transition: none; }
 }
 </style>
@@ -344,10 +374,34 @@ h2 { font-size: clamp(2rem, 8vw, 2.8rem); }
       <p class="sign">Yours, always<br>Pankaj <small>and a very small Yaanvi</small></p>
     </article>
     <div class="row">
-      <button class="btn" id="finale" type="button">Light up the sky</button>
-      <button class="btn ghost" id="restart" type="button">Start again</button>
+      <button class="btn" data-next type="button">Write back to me</button>
+      <button class="btn ghost" id="finale" type="button">Light up the sky</button>
     </div>
     <p class="foot">Tap anywhere on the sky for more fireworks.</p>
+  </section>
+
+  <!-- 7. Write back -->
+  <section class="scene" data-scene="6" hidden>
+    <p class="eyebrow">Your turn</p>
+    <h2>Write back to me</h2>
+    <p class="sub">A wish, a memory, anything you want to tell me. It goes up as a sky lantern, and then to my WhatsApp.</p>
+    <form class="reply" id="replyForm" novalidate>
+      <label class="lbl" for="replyText">Your message to Pankaj</label>
+      <textarea id="replyText" rows="5" maxlength="800" placeholder="Happy Diwali, Pankaj…"></textarea>
+      <label class="lbl" for="replyWord">One word for Yaanvi's first Diwali</label>
+      <input id="replyWord" type="text" maxlength="30" placeholder="Magical, noisy, sparkly…" autocomplete="off">
+      <p class="hint" id="replyHint" aria-live="polite"></p>
+      <div class="row"><button class="btn" type="submit">Release the lantern</button></div>
+    </form>
+    <div class="sendbox" id="sendBox" hidden>
+      <p class="hint">Your lantern is in the sky. <b>Tap below and press Send in WhatsApp</b> so it reaches me.</p>
+      <div class="row">
+        <a class="btn" id="waLink" href="https://wa.me/" target="_blank" rel="noopener">Send to Pankaj on WhatsApp</a>
+        <button class="btn ghost" id="copyReply" type="button">Copy message</button>
+      </div>
+      <p class="foot" id="copyNote" aria-live="polite"></p>
+    </div>
+    <div class="row"><button class="btn ghost" id="restart" type="button">Start again</button></div>
   </section>
 </main>
 
@@ -604,8 +658,50 @@ h2 { font-size: clamp(2rem, 8vw, 2.8rem); }
   /* ---------- 6. Letter & finale ---------- */
   document.getElementById('finale').addEventListener('click', celebrate);
   document.getElementById('restart').addEventListener('click', () => location.reload());
+
+  /* ---------- 7. Write back ---------- */
+  const form = document.getElementById('replyForm');
+  const replyText = document.getElementById('replyText');
+  const replyWord = document.getElementById('replyWord');
+  const replyHint = document.getElementById('replyHint');
+  const sendBox = document.getElementById('sendBox');
+  const waLink = document.getElementById('waLink');
+  const copyNote = document.getElementById('copyNote');
+  const DRAFT = 'akanksha-diwali-draft';
+  try { const d = JSON.parse(localStorage.getItem(DRAFT) || '{}'); replyText.value = d.t || ''; replyWord.value = d.w || ''; } catch (e) {}
+  const saveDraft = () => { try { localStorage.setItem(DRAFT, JSON.stringify({ t: replyText.value, w: replyWord.value })); } catch (e) {} };
+  replyText.addEventListener('input', saveDraft); replyWord.addEventListener('input', saveDraft);
+  function composed() {
+    let m = '🪔 Diwali reply from Akanksha\n\n' + replyText.value.trim();
+    if (replyWord.value.trim()) m += "\n\nOne word for Yaanvi's first Diwali: " + replyWord.value.trim();
+    return m;
+  }
+  function lantern(text) {
+    const l = document.createElement('div');
+    l.className = 'lantern'; l.setAttribute('aria-hidden', 'true');
+    l.textContent = text.length > 120 ? text.slice(0, 117) + '…' : text;
+    document.body.appendChild(l);
+    setTimeout(() => l.remove(), reduce ? 4000 : 10500);
+  }
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    if (!replyText.value.trim()) { replyHint.textContent = 'Write a few words first, then release the lantern.'; replyText.focus(); return; }
+    replyHint.textContent = '';
+    waLink.href = 'https://wa.me/?text=' + encodeURIComponent(composed());
+    sendBox.hidden = false; copyNote.textContent = '';
+    lantern(replyText.value.trim());
+    chime(523); chime(659, .2); chime(784, .4);
+    setTimeout(celebrate, 1200);
+  });
+  document.getElementById('copyReply').addEventListener('click', () => {
+    const msg = composed();
+    const fallback = () => { replyText.focus(); replyText.select(); copyNote.textContent = 'Your message is selected above. Copy it and send it to me.'; };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(msg).then(() => { copyNote.textContent = 'Copied. Paste it in a message to me.'; }, fallback);
+    else fallback();
+  });
+
   document.addEventListener('click', e => {
-    if (current !== 5 || e.target.closest('button, .letter')) return;
+    if (current < 5 || e.target.closest('button, a, .letter, form')) return;
     launch(e.clientX, e.clientY);
   });
 })();
